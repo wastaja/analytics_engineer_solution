@@ -1,0 +1,134 @@
+version: 2
+
+models:
+  - name: stg_agreements
+    description: >
+      Latest version of each agreement from the latest-state extract. Text fields are trimmed and
+      uppercased, dates and money are typed (money as NUMBER(18,2)). One row per agreement_id;
+      ties on updated_at are broken deterministically by row_hash.
+    columns:
+      - name: agreement_id
+        description: Business key of the agreement (trimmed, uppercased).
+        data_tests:
+          - unique
+          - not_null
+      - name: customer_id
+        description: Customer identifier. A customer can hold multiple agreements.
+        data_tests:
+          - not_null
+      - name: country
+        description: Country code after trim/uppercase.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['KE', 'UG']
+      - name: product
+        description: Product after trim/uppercase.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['PHONES', 'BODA']
+      - name: currency
+        description: Currency code after trim/uppercase. No FX is applied anywhere in the project.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['KES', 'UGX']
+      - name: origination_date
+        description: Agreement origination date (calendar date).
+        data_tests:
+          - not_null
+      - name: principal_amount
+        description: Descriptive only; not used in any metric. NUMBER(18,2).
+        data_tests:
+          - not_null
+      - name: updated_at
+        description: Timestamp of the record version, used only to order versions.
+        data_tests:
+          - not_null
+      - name: row_hash
+        description: MD5 of all business columns (NULL-safe); tie-breaker for equal updated_at.
+        data_tests:
+          - not_null
+
+  - name: stg_schedule
+    description: >
+      Latest version of each installment. One row per installment_id. The latest schedule is used
+      for all reporting dates (historical schedule versions cannot be reconstructed).
+    columns:
+      - name: installment_id
+        description: Business key of the installment (trimmed, uppercased).
+        data_tests:
+          - unique
+          - not_null
+      - name: agreement_id
+        description: Agreement the installment belongs to.
+        data_tests:
+          - not_null
+      - name: due_date
+        description: Installment due date (calendar date).
+        data_tests:
+          - not_null
+      - name: due_amount
+        description: Scheduled amount in the agreement currency. NUMBER(18,2).
+        data_tests:
+          - not_null
+      - name: updated_at
+        description: Timestamp of the record version, used only to order versions.
+        data_tests:
+          - not_null
+      - name: row_hash
+        description: MD5 of all business columns (NULL-safe); tie-breaker for equal updated_at.
+        data_tests:
+          - not_null
+
+  - name: stg_payments
+    description: >
+      Latest version of each payment across all statuses. One row per payment_id. Status filtering
+      (POSTED only) happens downstream, after deduplication, so a REVERSED latest version
+      overrides an earlier POSTED one.
+    columns:
+      - name: payment_id
+        description: Business key of the payment (trimmed, uppercased).
+        data_tests:
+          - unique
+          - not_null
+      - name: agreement_id
+        description: Agreement the payment refers to. May reference an unknown agreement (orphan).
+        data_tests:
+          - not_null
+      - name: payment_date
+        description: Payment date (calendar date).
+        data_tests:
+          - not_null
+      - name: amount
+        description: Payment amount in the agreement currency. NUMBER(18,2).
+        data_tests:
+          - not_null
+      - name: status
+        description: Latest payment status.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['POSTED', 'PENDING', 'REVERSED']
+      - name: updated_at
+        description: Timestamp of the record version, used only to order versions.
+        data_tests:
+          - not_null
+      - name: row_hash
+        description: MD5 of all business columns (NULL-safe); tie-breaker for equal updated_at.
+        data_tests:
+          - not_null
+
+  - name: stg_reporting_dates
+    description: Calendar of reporting dates, 2026-01-01 through 2026-06-30 inclusive.
+    columns:
+      - name: reporting_date
+        description: Reporting date (calendar date).
+        data_tests:
+          - unique
+          - not_null

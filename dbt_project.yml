@@ -1,0 +1,57 @@
+name: analytics_engineering_task
+version: '1.0.0'
+config-version: 2
+profile: analytics_engineering_task
+model-paths: [models]
+seed-paths: [seeds]
+test-paths: [tests]
+
+models:
+  analytics_engineering_task:
+    staging:
+      +materialized: view
+      +schema: staging
+
+    intermediate:
+      +materialized: view
+      +schema: intermediate
+
+    marts:
+      +materialized: table
+      +schema: marts
+
+seeds:
+  analytics_engineering_task:
+    +quote_columns: false
+    # Raw seeds stay strings; typing/cleaning happens in staging.
+    agreements:
+      +column_types:
+        agreement_id: varchar
+        customer_id: varchar
+        country: varchar
+        product: varchar
+        currency: varchar
+        origination_date: varchar
+        principal_amount: varchar
+        updated_at: varchar
+
+    schedule:
+      +column_types:
+        installment_id: varchar
+        agreement_id: varchar
+        due_date: varchar
+        due_amount: varchar
+        updated_at: varchar
+
+    payments:
+      +column_types:
+        payment_id: varchar
+        agreement_id: varchar
+        payment_date: varchar
+        amount: varchar
+        status: varchar
+        updated_at: varchar
+
+    reporting_dates:
+      +column_types:
+        reporting_date: varchar
