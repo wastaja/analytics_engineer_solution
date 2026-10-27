@@ -1,12 +1,17 @@
 with
-    typed as (
+    schedule as (
+        select *
+        from {{ref('schedule')}}
+    )
+
+    , typed as (
         select
-            upper(trim(installment_id)) as installment_id
-            , upper(trim(agreement_id)) as agreement_id
+            {{clean_text('installment_id')}} as installment_id
+            , {{clean_text('agreement_id')}} as agreement_id
             , try_to_date(due_date) as due_date
             , try_to_number(due_amount, 18, 2) as due_amount
             , try_to_timestamp_ntz(updated_at) as updated_at
-        from {{ ref('schedule') }}
+        from schedule
     )
 
     , hashed as (
@@ -21,7 +26,18 @@ with
         from typed
     )
 
-select *
-from hashed
-qualify
-    row_number() over (partition by installment_id order by updated_at desc, row_hash) = 1
+    -- rn = 1 is the latest version of the key. The hash range within (key, updated_at)
+    -- tells exact duplicates (one hash) from conflicts (same timestamp, different content).
+    , ranked as (
+        select *
+            , row_number() over (partition by installment_id order by updated_at desc, row_hash) as rn
+            , min(row_hash) over (partition by installment_id, updated_at) as min_hash_at_ts
+            , max(row_hash) over (partition by installment_id, updated_at) as max_hash_at_ts
+        from hashed
+    )
+
+select
+    * exclude (rn, min_hash_at_ts, max_hash_at_ts)
+    , (min_hash_at_ts <> max_hash_at_ts) as is_conflicting_version
+from ranked
+where rn = 1

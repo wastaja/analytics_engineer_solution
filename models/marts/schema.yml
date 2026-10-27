@@ -1,0 +1,34 @@
+version: 2
+
+models:
+  - name: dq_excluded_summary
+    description: >
+      Data-quality summary: number and amount of records kept out of the portfolio metrics, per
+      source table, reason and currency. Quarantined rows are invalid data; status-excluded rows
+      are valid payments that are not POSTED. No FX is applied, so currencies are never summed together.
+    columns:
+      - name: exclusion_type
+        description: QUARANTINED (invalid row) or STATUS_EXCLUDED (valid payment that is not POSTED).
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['QUARANTINED', 'STATUS_EXCLUDED']
+      - name: source_table
+        description: Staging table of the excluded rows.
+        data_tests:
+          - not_null
+      - name: reason
+        description: Exclusion reason (a quarantine reason, or STATUS_<status>).
+        data_tests:
+          - not_null
+      - name: currency
+        description: Currency of the excluded records; UNKNOWN if it cannot be determined.
+        data_tests:
+          - not_null
+      - name: record_count
+        description: Number of excluded records.
+        data_tests:
+          - not_null
+      - name: total_amount
+        description: Sum of the excluded amounts in the stated currency. NUMBER(18,2).

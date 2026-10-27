@@ -53,6 +53,18 @@ models:
         description: MD5 of all business columns (NULL-safe); tie-breaker for equal updated_at.
         data_tests:
           - not_null
+      - name: is_conflicting_version
+        description: >
+          True when several versions of the key share the latest updated_at but differ in content.
+          The row shown is then picked deterministically (by row_hash) and should be reviewed.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [false]
+                quote: false
+              config:
+                severity: warn
 
   - name: stg_schedule
     description: >
@@ -84,6 +96,18 @@ models:
         description: MD5 of all business columns (NULL-safe); tie-breaker for equal updated_at.
         data_tests:
           - not_null
+      - name: is_conflicting_version
+        description: >
+          True when several versions of the key share the latest updated_at but differ in content.
+          The row shown is then picked deterministically (by row_hash) and should be reviewed.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [false]
+                quote: false
+              config:
+                severity: warn
 
   - name: stg_payments
     description: >
@@ -123,6 +147,18 @@ models:
         description: MD5 of all business columns (NULL-safe); tie-breaker for equal updated_at.
         data_tests:
           - not_null
+      - name: is_conflicting_version
+        description: >
+          True when several versions of the key share the latest updated_at but differ in content.
+          The row shown is then picked deterministically (by row_hash) and should be reviewed.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [false]
+                quote: false
+              config:
+                severity: warn
 
   - name: stg_reporting_dates
     description: Calendar of reporting dates, 2026-01-01 through 2026-06-30 inclusive.

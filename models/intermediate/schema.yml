@@ -1,0 +1,109 @@
+version: 2
+
+models:
+  - name: int_quarantine_records
+    description: >
+      One row per staging row that failed validation (excluded_from_metrics = true) or that is
+      flagged as a conflicting version (excluded_from_metrics = false, informational only).
+      This is the only place validation rules are defined; the valid/eligible models are
+      "staging rows not rejected here".
+    columns:
+      - name: source_table
+        description: Staging table the row comes from.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['agreements', 'schedule', 'payments']
+      - name: record_key
+        description: Business key of the row (agreement_id, installment_id or payment_id). NULL if the key itself is missing.
+      - name: row_hash
+        description: Hash of the staging row; used to match the row back to its staging model.
+        data_tests:
+          - not_null
+      - name: agreement_id
+        description: Agreement the row refers to.
+      - name: amount
+        description: principal_amount, due_amount or payment amount, depending on source_table.
+      - name: currency
+        description: Currency of the agreement; UNKNOWN when the agreement is not valid or not found.
+        data_tests:
+          - not_null
+      - name: reason
+        description: Why the row is listed.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values:
+                  - MISSING_REQUIRED_FIELD
+                  - INVALID_DOMAIN_VALUE
+                  - COUNTRY_CURRENCY_MISMATCH
+                  - ORPHAN_INSTALLMENT
+                  - ORPHAN_PAYMENT
+                  - INVALID_STATUS
+                  - NON_POSITIVE_AMOUNT
+                  - CONFLICTING_VERSION
+      - name: excluded_from_metrics
+        description: True when the row is kept out of the portfolio metrics; false for informational rows.
+        data_tests:
+          - not_null
+      - name: updated_at
+        description: Timestamp of the record version.
+
+  - name: int_agreements_valid
+    description: Agreements that passed validation. Anchor for relationship checks of schedule and payments.
+    columns:
+      - name: agreement_id
+        description: Business key of the agreement.
+        data_tests:
+          - unique
+          - not_null
+
+  - name: int_schedule_valid
+    description: Installments with a valid agreement and a positive amount.
+    columns:
+      - name: installment_id
+        description: Business key of the installment.
+        data_tests:
+          - unique
+          - not_null
+      - name: agreement_id
+        description: Agreement the installment belongs to.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('int_agreements_valid')
+                field: agreement_id
+
+  - name: int_payments_eligible
+    description: >
+      Payments counted in portfolio metrics: latest version is POSTED, with a valid agreement and
+      a positive amount. May include payments dated after the last reporting date.
+    columns:
+      - name: payment_id
+        description: Business key of the payment.
+        data_tests:
+          - unique
+          - not_null
+      - name: agreement_id
+        description: Agreement the payment refers to.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('int_agreements_valid')
+                field: agreement_id
+      - name: payment_date
+        description: Payment date (calendar date).
+        data_tests:
+          - not_null
+      - name: amount
+        description: Payment amount in the agreement currency. NUMBER(18,2).
+        data_tests:
+          - not_null
+      - name: currency
+        description: Currency of the agreement.
+        data_tests:
+          - not_null

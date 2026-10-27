@@ -6,8 +6,9 @@ Each staging model keeps one row per business key, chosen by the latest `updated
 
 - **Exact duplicates** (same key, same `updated_at`, same content, e.g. installment `A001-1`) collapse to one row.
 - **Ties** on `updated_at` are broken by `row_hash`, an MD5 of all business columns (NULL-safe, because `concat_ws` returns NULL in Snowflake if any argument is NULL). The pick is therefore deterministic and does not depend on row order.
-- **Conflicts** (same key and `updated_at`, different content) are not flagged in this submission. The tie-break above resolves them deterministically, but silently. I checked the raw extract and found none, so the output is unaffected.
-- In production I would add `is_conflicting_version` (more than one distinct `row_hash` within the latest `updated_at` of a key), list such keys in the quarantine model, and run the test as `warn` in dev and `error` before certifying the mart. The data owner of the source system would decide which version is correct.
+- **Conflicts** (same key and `updated_at`, different content) are flagged, not silently resolved. Each staging model exposes `is_conflicting_version`, true when the latest `updated_at` of a key has more than one distinct `row_hash`. The row kept is still the deterministic pick above, so metrics stay reproducible, but the key is marked for review. Conflicts among older, already superseded versions are irrelevant and not flagged.
+- The flag is tested with severity `warn` (the build is not blocked in dev); before certifying the mart I would raise it to `error`. The data owner of the source system decides which version is correct. The raw extract contains no such conflicts, so the tests are green; the flag and tie-break logic are covered by dbt unit tests with mocked conflicting inputs (`models/staging/unit_tests.yml`).
+- Flagged keys are meant to be listed in the quarantine model as informational rows (reason `CONFLICTING_VERSION`) while remaining in the metrics.
 - Deduplication happens before any status filter, so a latest `REVERSED` payment overrides an earlier `POSTED` version of the same `payment_id`.
 
 ## Schemas and access
