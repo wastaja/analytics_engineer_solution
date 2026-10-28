@@ -1,0 +1,62 @@
+version: 2
+
+unit_tests:
+  - name: fct_agreement_daily_balances_and_flags
+    description: >
+      Underpaid, exactly paid, overpaid and not-yet-due agreements, plus the DPD flag boundaries
+      (6 and 7 days for the 7+ flag, 29 and 30 days for the 30+ flag).
+    model: fct_agreement_daily
+    given:
+      - input: ref('int_agreement_dates')
+        rows:
+          - {agreement_date_key: A1|2026-03-01, agreement_id: A1, reporting_date: '2026-03-01', customer_id: C1, country: KE, product: PHONES, currency: KES}
+          - {agreement_date_key: A2|2026-03-01, agreement_id: A2, reporting_date: '2026-03-01', customer_id: C2, country: KE, product: PHONES, currency: KES}
+          - {agreement_date_key: A3|2026-03-01, agreement_id: A3, reporting_date: '2026-03-01', customer_id: C3, country: UG, product: BODA, currency: UGX}
+          - {agreement_date_key: A4|2026-03-01, agreement_id: A4, reporting_date: '2026-03-01', customer_id: C4, country: UG, product: BODA, currency: UGX}
+          - {agreement_date_key: A5|2026-03-01, agreement_id: A5, reporting_date: '2026-03-01', customer_id: C5, country: UG, product: BODA, currency: UGX}
+          - {agreement_date_key: A6|2026-03-01, agreement_id: A6, reporting_date: '2026-03-01', customer_id: C6, country: UG, product: BODA, currency: UGX}
+          - {agreement_date_key: A7|2026-03-01, agreement_id: A7, reporting_date: '2026-03-01', customer_id: C7, country: UG, product: BODA, currency: UGX}
+      - input: ref('int_agreement_daily_amounts')
+        rows:
+          - {agreement_date_key: A1|2026-03-01, total_due: 2000.50, total_paid: 500.25, total_scheduled: 6000.00}
+          - {agreement_date_key: A2|2026-03-01, total_due: 2000.50, total_paid: 2000.50, total_scheduled: 6000.00}
+          - {agreement_date_key: A3|2026-03-01, total_due: 2000.50, total_paid: 6500.75, total_scheduled: 6000.00}
+          - {agreement_date_key: A4|2026-03-01, total_due: 0.00, total_paid: 0.00, total_scheduled: 6000.00}
+          - {agreement_date_key: A5|2026-03-01, total_due: 1000.00, total_paid: 0.00, total_scheduled: 6000.00}
+          - {agreement_date_key: A6|2026-03-01, total_due: 1000.00, total_paid: 0.00, total_scheduled: 6000.00}
+          - {agreement_date_key: A7|2026-03-01, total_due: 1000.00, total_paid: 0.00, total_scheduled: 6000.00}
+      - input: ref('int_agreement_daily_dpd')
+        rows:
+          - {agreement_date_key: A1|2026-03-01, oldest_unpaid_due_date: '2026-02-15', dpd: 14}
+          - {agreement_date_key: A2|2026-03-01, oldest_unpaid_due_date: null, dpd: 0}
+          - {agreement_date_key: A3|2026-03-01, oldest_unpaid_due_date: null, dpd: 0}
+          - {agreement_date_key: A4|2026-03-01, oldest_unpaid_due_date: null, dpd: 0}
+          - {agreement_date_key: A5|2026-03-01, oldest_unpaid_due_date: '2026-02-23', dpd: 6}
+          - {agreement_date_key: A6|2026-03-01, oldest_unpaid_due_date: '2026-02-22', dpd: 7}
+          - {agreement_date_key: A7|2026-03-01, oldest_unpaid_due_date: '2026-01-30', dpd: 30}
+    expect:
+      rows:
+        - {agreement_id: A1, total_due: 2000.50, total_paid: 500.25, total_scheduled: 6000.00, arrears_amount: 1500.25, remaining_scheduled_amount: 5499.75, credit_balance: 0.00, dpd: 14, dpd7_flag: true, dpd30_flag: false}
+        - {agreement_id: A2, total_due: 2000.50, total_paid: 2000.50, total_scheduled: 6000.00, arrears_amount: 0.00, remaining_scheduled_amount: 3999.50, credit_balance: 0.00, dpd: 0, dpd7_flag: false, dpd30_flag: false}
+        - {agreement_id: A3, total_due: 2000.50, total_paid: 6500.75, total_scheduled: 6000.00, arrears_amount: 0.00, remaining_scheduled_amount: 0.00, credit_balance: 500.75, dpd: 0, dpd7_flag: false, dpd30_flag: false}
+        - {agreement_id: A4, total_due: 0.00, total_paid: 0.00, total_scheduled: 6000.00, arrears_amount: 0.00, remaining_scheduled_amount: 6000.00, credit_balance: 0.00, dpd: 0, dpd7_flag: false, dpd30_flag: false}
+        - {agreement_id: A5, total_due: 1000.00, total_paid: 0.00, total_scheduled: 6000.00, arrears_amount: 1000.00, remaining_scheduled_amount: 6000.00, credit_balance: 0.00, dpd: 6, dpd7_flag: false, dpd30_flag: false}
+        - {agreement_id: A6, total_due: 1000.00, total_paid: 0.00, total_scheduled: 6000.00, arrears_amount: 1000.00, remaining_scheduled_amount: 6000.00, credit_balance: 0.00, dpd: 7, dpd7_flag: true, dpd30_flag: false}
+        - {agreement_id: A7, total_due: 1000.00, total_paid: 0.00, total_scheduled: 6000.00, arrears_amount: 1000.00, remaining_scheduled_amount: 6000.00, credit_balance: 0.00, dpd: 30, dpd7_flag: true, dpd30_flag: true}
+
+  - name: mart_portfolio_daily_aggregation_and_rates
+    description: >
+      Two KES agreements of one segment (one underpaid and one overpaid) and one UGX agreement.
+      Arrears and credit are summed per agreement (overpayment does not offset arrears), the DPD
+      rates use all agreements of the group as the denominator, and currencies stay separate.
+    model: mart_portfolio_daily
+    given:
+      - input: ref('fct_agreement_daily')
+        rows:
+          - {agreement_id: A1, reporting_date: '2026-03-01', country: KE, product: PHONES, currency: KES, total_due: 2000.50, total_paid: 500.25, arrears_amount: 1500.25, remaining_scheduled_amount: 5499.75, credit_balance: 0.00, dpd7_flag: true, dpd30_flag: false}
+          - {agreement_id: A2, reporting_date: '2026-03-01', country: KE, product: PHONES, currency: KES, total_due: 2000.50, total_paid: 6500.75, arrears_amount: 0.00, remaining_scheduled_amount: 0.00, credit_balance: 500.75, dpd7_flag: false, dpd30_flag: false}
+          - {agreement_id: A3, reporting_date: '2026-03-01', country: UG, product: BODA, currency: UGX, total_due: 1000.00, total_paid: 0.00, arrears_amount: 1000.00, remaining_scheduled_amount: 6000.00, credit_balance: 0.00, dpd7_flag: true, dpd30_flag: true}
+    expect:
+      rows:
+        - {reporting_date: '2026-03-01', country: KE, product: PHONES, currency: KES, agreement_count: 2, total_due: 4001.00, total_paid: 7001.00, arrears_amount: 1500.25, remaining_scheduled_amount: 5499.75, credit_balance: 500.75, dpd7_count: 1, dpd30_count: 0, dpd7_rate: 0.5000, dpd30_rate: 0.0000}
+        - {reporting_date: '2026-03-01', country: UG, product: BODA, currency: UGX, agreement_count: 1, total_due: 1000.00, total_paid: 0.00, arrears_amount: 1000.00, remaining_scheduled_amount: 6000.00, credit_balance: 0.00, dpd7_count: 1, dpd30_count: 1, dpd7_rate: 1.0000, dpd30_rate: 1.0000}

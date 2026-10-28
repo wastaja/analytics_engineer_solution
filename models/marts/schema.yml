@@ -32,3 +32,179 @@ models:
           - not_null
       - name: total_amount
         description: Sum of the excluded amounts in the stated currency. NUMBER(18,2).
+
+  - name: fct_agreement_daily
+    description: >
+      Daily fact: one row per valid agreement and reporting date (2026-01-01 to 2026-06-30, from
+      the origination date on). Cumulative position of the agreement as of the reporting date,
+      restated with the latest schedule and payment states. All amounts are in the agreement
+      currency, NUMBER(18,2); no FX is applied.
+    columns:
+      - name: agreement_date_key
+        description: agreement_id and reporting_date joined as text; unique key of the grain.
+        data_tests:
+          - unique
+          - not_null
+      - name: agreement_id
+        description: Valid agreement.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('int_agreements_valid')
+                field: agreement_id
+      - name: reporting_date
+        description: Reporting date (calendar date).
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_reporting_dates')
+                field: reporting_date
+      - name: customer_id
+        description: Customer holding the agreement.
+        data_tests:
+          - not_null
+      - name: country
+        description: Country of the agreement.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['KE', 'UG']
+      - name: product
+        description: Product of the agreement.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['PHONES', 'BODA']
+      - name: currency
+        description: Currency of the agreement.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['KES', 'UGX']
+      - name: total_due
+        description: Sum of scheduled amounts with due_date <= reporting_date. NUMBER(18,2).
+        data_tests:
+          - not_null
+      - name: total_paid
+        description: Sum of eligible (POSTED) payments with payment_date <= reporting_date. NUMBER(18,2).
+        data_tests:
+          - not_null
+      - name: total_scheduled
+        description: Sum of all installments of the agreement, including future ones. NUMBER(18,2).
+        data_tests:
+          - not_null
+      - name: arrears_amount
+        description: greatest(total_due - total_paid, 0). NUMBER(18,2).
+        data_tests:
+          - not_null
+      - name: remaining_scheduled_amount
+        description: greatest(total_scheduled - total_paid, 0). NUMBER(18,2).
+        data_tests:
+          - not_null
+      - name: credit_balance
+        description: greatest(total_paid - total_scheduled, 0), i.e. overpayment. NUMBER(18,2).
+        data_tests:
+          - not_null
+      - name: oldest_unpaid_due_date
+        description: Due date of the oldest unpaid installment that is due on the reporting date (FIFO, 0.01 tolerance); NULL if none.
+      - name: dpd
+        description: Days from oldest_unpaid_due_date to reporting_date; 0 when there is none. An installment due today has DPD 0.
+        data_tests:
+          - not_null
+      - name: dpd7_flag
+        description: True when dpd >= 7.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [true, false]
+                quote: false
+      - name: dpd30_flag
+        description: True when dpd >= 30.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: [true, false]
+                quote: false
+
+  - name: mart_portfolio_daily
+    description: >
+      Portfolio summary: one row per reporting date, country, product and currency. Currencies are
+      never summed together. Balance measures are sums of the per-agreement values of
+      fct_agreement_daily. DPD rates use all agreements present on that date as the denominator.
+    columns:
+      - name: reporting_date
+        description: Reporting date (calendar date).
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('stg_reporting_dates')
+                field: reporting_date
+      - name: country
+        description: Country of the agreements.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['KE', 'UG']
+      - name: product
+        description: Product of the agreements.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['PHONES', 'BODA']
+      - name: currency
+        description: Currency of the amounts in the row.
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['KES', 'UGX']
+      - name: agreement_count
+        description: Number of agreements present on the reporting date; the denominator of the DPD rates.
+        data_tests:
+          - not_null
+      - name: total_due
+        description: Sum of total_due over the agreements. NUMBER(18,2).
+        data_tests:
+          - not_null
+      - name: total_paid
+        description: Sum of total_paid over the agreements. NUMBER(18,2).
+        data_tests:
+          - not_null
+      - name: arrears_amount
+        description: Sum of the per-agreement arrears_amount. NUMBER(18,2).
+        data_tests:
+          - not_null
+      - name: remaining_scheduled_amount
+        description: Sum of the per-agreement remaining_scheduled_amount. NUMBER(18,2).
+        data_tests:
+          - not_null
+      - name: credit_balance
+        description: Sum of the per-agreement credit_balance (overpayments). NUMBER(18,2).
+        data_tests:
+          - not_null
+      - name: dpd7_count
+        description: Agreements with DPD >= 7.
+        data_tests:
+          - not_null
+      - name: dpd30_count
+        description: Agreements with DPD >= 30.
+        data_tests:
+          - not_null
+      - name: dpd7_rate
+        description: dpd7_count / agreement_count. NUMBER(9,4).
+        data_tests:
+          - not_null
+      - name: dpd30_rate
+        description: dpd30_count / agreement_count. NUMBER(9,4).
+        data_tests:
+          - not_null

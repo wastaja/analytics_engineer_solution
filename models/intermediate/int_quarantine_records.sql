@@ -78,8 +78,8 @@ with
                 when s.due_amount <= 0 then 'NON_POSITIVE_AMOUNT'
             end as reject_reason
         from stg_schedule as s
-        left join valid_agreements as a
-            on a.agreement_id = s.agreement_id
+            left join valid_agreements as a
+                on a.agreement_id = s.agreement_id
     )
 
     , payments_checked as (
@@ -103,8 +103,8 @@ with
                 when p.amount <= 0 then 'NON_POSITIVE_AMOUNT'
             end as reject_reason
         from stg_payments as p
-        left join valid_agreements as a
-            on a.agreement_id = p.agreement_id
+            left join valid_agreements as a
+                on a.agreement_id = p.agreement_id
     )
 
     -- agreements.amount is principal_amount (descriptive only); the currency of a row whose

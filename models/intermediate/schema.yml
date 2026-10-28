@@ -107,3 +107,128 @@ models:
         description: Currency of the agreement.
         data_tests:
           - not_null
+
+  - name: int_agreement_dates
+    description: >
+      Spine of the daily fact: one row per valid agreement and reporting date, from the
+      origination date through the last reporting date. Carries the agreement attributes.
+    columns:
+      - name: agreement_date_key
+        description: agreement_id and reporting_date joined as text; unique key of the grain.
+        data_tests:
+          - unique
+          - not_null
+      - name: agreement_id
+        description: Valid agreement.
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('int_agreements_valid')
+                field: agreement_id
+      - name: reporting_date
+        description: Reporting date (calendar date).
+        data_tests:
+          - not_null
+      - name: customer_id
+        description: Customer holding the agreement.
+        data_tests:
+          - not_null
+      - name: country
+        description: Country of the agreement (KE, UG).
+        data_tests:
+          - not_null
+      - name: product
+        description: Product of the agreement (PHONES, BODA).
+        data_tests:
+          - not_null
+      - name: currency
+        description: Currency of the agreement (KES, UGX).
+        data_tests:
+          - not_null
+
+  - name: int_agreement_daily_amounts
+    description: >
+      Cumulative amounts per agreement and reporting date, on the same grain as int_agreement_dates.
+      Each measure is aggregated separately and joined one-to-one, so amounts are never multiplied.
+      Restated historical reporting: the latest schedule and latest payment states are applied to
+      every date.
+    columns:
+      - name: agreement_date_key
+        description: Unique key of the grain, same as in int_agreement_dates.
+        data_tests:
+          - unique
+          - not_null
+      - name: agreement_id
+        description: Valid agreement.
+        data_tests:
+          - not_null
+      - name: reporting_date
+        description: Reporting date (calendar date).
+        data_tests:
+          - not_null
+      - name: total_due
+        description: Sum of scheduled amounts with due_date <= reporting_date. NUMBER(18,2).
+        data_tests:
+          - not_null
+      - name: total_paid
+        description: Sum of eligible (POSTED) payments with payment_date <= reporting_date. NUMBER(18,2).
+        data_tests:
+          - not_null
+      - name: total_scheduled
+        description: Sum of all installments of the agreement, including future ones. NUMBER(18,2).
+        data_tests:
+          - not_null
+
+  - name: int_schedule_cumulative
+    description: >
+      Installments with a running total of scheduled amounts per agreement in FIFO order
+      (due_date, installment_id). Used to apply agreement-level payments oldest-first.
+    columns:
+      - name: installment_id
+        description: Business key of the installment.
+        data_tests:
+          - unique
+          - not_null
+      - name: agreement_id
+        description: Agreement the installment belongs to.
+        data_tests:
+          - not_null
+      - name: due_date
+        description: Installment due date (calendar date).
+        data_tests:
+          - not_null
+      - name: due_amount
+        description: Scheduled amount of this installment. NUMBER(18,2).
+        data_tests:
+          - not_null
+      - name: cum_scheduled
+        description: Running total of due_amount per agreement up to and including this installment. NUMBER(18,2).
+        data_tests:
+          - not_null
+
+  - name: int_agreement_daily_dpd
+    description: >
+      Days past due per agreement and reporting date, on the same grain as int_agreement_dates.
+      Payments are allocated FIFO against installments; DPD counts days from the due date of the
+      oldest unpaid due installment (0.01 tolerance) to the reporting date.
+    columns:
+      - name: agreement_date_key
+        description: Unique key of the grain, same as in int_agreement_dates.
+        data_tests:
+          - unique
+          - not_null
+      - name: agreement_id
+        description: Valid agreement.
+        data_tests:
+          - not_null
+      - name: reporting_date
+        description: Reporting date (calendar date).
+        data_tests:
+          - not_null
+      - name: oldest_unpaid_due_date
+        description: Due date of the oldest unpaid installment that is due on the reporting date; NULL if none.
+      - name: dpd
+        description: Days from oldest_unpaid_due_date to reporting_date, 0 when there is none. An installment due today has DPD 0.
+        data_tests:
+          - not_null

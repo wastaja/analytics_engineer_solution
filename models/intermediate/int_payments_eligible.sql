@@ -28,8 +28,8 @@ select
     , p.updated_at
     , p.row_hash
 from stg_payments as p
-inner join int_agreements_valid as a
-    on a.agreement_id = p.agreement_id
+    inner join int_agreements_valid as a
+        on a.agreement_id = p.agreement_id
 where
     p.status = 'POSTED'
     and not exists (

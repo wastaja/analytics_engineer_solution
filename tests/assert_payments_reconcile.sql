@@ -1,5 +1,6 @@
 -- Every staging payment must land in exactly one bucket: eligible, quarantined or excluded by
--- status. Returns a row (test fails) if counts or amounts do not add up.
+-- status. Returns a row (test fails) if counts or amounts do not add up. Amounts are
+-- fixed-point NUMBER(18,2), so they are compared exactly.
 with
     stg_payments as (
         select *
@@ -41,4 +42,4 @@ from totals
 cross join eligible
 cross join excluded
 where totals.payment_count <> eligible.payment_count + excluded.payment_count
-    or abs(totals.payment_amount - (eligible.payment_amount + excluded.payment_amount)) > 0.01
+    or totals.payment_amount <> eligible.payment_amount + excluded.payment_amount

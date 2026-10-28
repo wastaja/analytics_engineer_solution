@@ -57,3 +57,65 @@ unit_tests:
     expect:
       rows:
         - {source_table: agreements, record_key: A001, currency: KES, reason: CONFLICTING_VERSION, excluded_from_metrics: false}
+
+  - name: int_agreement_daily_amounts_cumulative_measures
+    description: >
+      A payment or installment on the reporting date counts, several payments on one day are summed,
+      a payment after the window is ignored, and an agreement without payments has total_paid 0.
+    model: int_agreement_daily_amounts
+    given:
+      - input: ref('int_agreement_dates')
+        rows:
+          - {agreement_date_key: A001|2026-01-14, agreement_id: A001, reporting_date: '2026-01-14'}
+          - {agreement_date_key: A001|2026-01-15, agreement_id: A001, reporting_date: '2026-01-15'}
+          - {agreement_date_key: A001|2026-01-16, agreement_id: A001, reporting_date: '2026-01-16'}
+          - {agreement_date_key: A002|2026-01-15, agreement_id: A002, reporting_date: '2026-01-15'}
+      - input: ref('int_schedule_valid')
+        rows:
+          - {installment_id: A001-1, agreement_id: A001, due_date: '2026-01-15', due_amount: 1000.25}
+          - {installment_id: A001-2, agreement_id: A001, due_date: '2026-02-15', due_amount: 1000.25}
+          - {installment_id: A002-1, agreement_id: A002, due_date: '2026-01-20', due_amount: 500.00}
+      - input: ref('int_payments_eligible')
+        rows:
+          - {payment_id: P1, agreement_id: A001, payment_date: '2026-01-15', amount: 400.00}
+          - {payment_id: P2, agreement_id: A001, payment_date: '2026-01-15', amount: 100.00}
+          - {payment_id: P-FUTURE, agreement_id: A001, payment_date: '2026-07-01', amount: 200.25}
+    expect:
+      rows:
+        - {agreement_id: A001, reporting_date: '2026-01-14', total_due: 0.00, total_paid: 0.00, total_scheduled: 2000.50}
+        - {agreement_id: A001, reporting_date: '2026-01-15', total_due: 1000.25, total_paid: 500.00, total_scheduled: 2000.50}
+        - {agreement_id: A001, reporting_date: '2026-01-16', total_due: 1000.25, total_paid: 500.00, total_scheduled: 2000.50}
+        - {agreement_id: A002, reporting_date: '2026-01-15', total_due: 0.00, total_paid: 0.00, total_scheduled: 500.00}
+
+  - name: int_agreement_daily_dpd_fifo_and_tolerance
+    description: >
+      Three installments of 1000.00 (due 01-15, 02-15, 03-15). Checks DPD 0 before the first due
+      date and on the due date itself, FIFO allocation of a partial payment, the 0.01 tolerance
+      (999.99 pays the installment, 999.98 does not) and agreements that are fully paid or overpaid.
+    model: int_agreement_daily_dpd
+    given:
+      - input: ref('int_agreement_daily_amounts')
+        rows:
+          - {agreement_date_key: A001|2026-01-14, agreement_id: A001, reporting_date: '2026-01-14', total_paid: 0.00}
+          - {agreement_date_key: A001|2026-01-15, agreement_id: A001, reporting_date: '2026-01-15', total_paid: 0.00}
+          - {agreement_date_key: A001|2026-01-25, agreement_id: A001, reporting_date: '2026-01-25', total_paid: 0.00}
+          - {agreement_date_key: A001|2026-02-20, agreement_id: A001, reporting_date: '2026-02-20', total_paid: 1000.00}
+          - {agreement_date_key: A001|2026-02-21, agreement_id: A001, reporting_date: '2026-02-21', total_paid: 999.99}
+          - {agreement_date_key: A001|2026-02-22, agreement_id: A001, reporting_date: '2026-02-22', total_paid: 999.98}
+          - {agreement_date_key: A001|2026-03-20, agreement_id: A001, reporting_date: '2026-03-20', total_paid: 3000.00}
+          - {agreement_date_key: A001|2026-03-21, agreement_id: A001, reporting_date: '2026-03-21', total_paid: 3500.00}
+      - input: ref('int_schedule_cumulative')
+        rows:
+          - {installment_id: A001-1, agreement_id: A001, due_date: '2026-01-15', cum_scheduled: 1000.00}
+          - {installment_id: A001-2, agreement_id: A001, due_date: '2026-02-15', cum_scheduled: 2000.00}
+          - {installment_id: A001-3, agreement_id: A001, due_date: '2026-03-15', cum_scheduled: 3000.00}
+    expect:
+      rows:
+        - {agreement_id: A001, reporting_date: '2026-01-14', oldest_unpaid_due_date: null, dpd: 0}
+        - {agreement_id: A001, reporting_date: '2026-01-15', oldest_unpaid_due_date: '2026-01-15', dpd: 0}
+        - {agreement_id: A001, reporting_date: '2026-01-25', oldest_unpaid_due_date: '2026-01-15', dpd: 10}
+        - {agreement_id: A001, reporting_date: '2026-02-20', oldest_unpaid_due_date: '2026-02-15', dpd: 5}
+        - {agreement_id: A001, reporting_date: '2026-02-21', oldest_unpaid_due_date: '2026-02-15', dpd: 6}
+        - {agreement_id: A001, reporting_date: '2026-02-22', oldest_unpaid_due_date: '2026-01-15', dpd: 38}
+        - {agreement_id: A001, reporting_date: '2026-03-20', oldest_unpaid_due_date: null, dpd: 0}
+        - {agreement_id: A001, reporting_date: '2026-03-21', oldest_unpaid_due_date: null, dpd: 0}
