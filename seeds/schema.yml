@@ -1,0 +1,60 @@
+version: 2
+
+# Raw layer. Every column is loaded as text on purpose (see +column_types in dbt_project.yml);
+# typing, cleaning and deduplication happen in the staging models.
+seeds:
+  - name: agreements
+    description: Raw agreements extract. Several rows per agreement_id can exist (record updates, duplicates).
+    columns:
+      - name: agreement_id
+        description: Business key of the agreement.
+      - name: customer_id
+        description: Customer identifier; a customer can hold multiple agreements.
+      - name: country
+        description: Country code as delivered (may need trim/uppercase).
+      - name: product
+        description: Product as delivered (may need trim/uppercase).
+      - name: currency
+        description: Currency code as delivered.
+      - name: origination_date
+        description: ISO date, as text.
+      - name: principal_amount
+        description: Decimal as text; descriptive only.
+      - name: updated_at
+        description: ISO timestamp as text, without timezone; orders record versions.
+
+  - name: schedule
+    description: Raw installment schedule. Several rows per installment_id can exist.
+    columns:
+      - name: installment_id
+        description: Business key of the installment.
+      - name: agreement_id
+        description: Agreement the installment belongs to.
+      - name: due_date
+        description: ISO date, as text.
+      - name: due_amount
+        description: Decimal as text.
+      - name: updated_at
+        description: ISO timestamp as text, without timezone; orders record versions.
+
+  - name: payments
+    description: Raw payments extract, agreement-level (no installment allocation). Includes duplicates, status changes, pending, future and orphan payments.
+    columns:
+      - name: payment_id
+        description: Business key of the payment.
+      - name: agreement_id
+        description: Agreement the payment refers to.
+      - name: payment_date
+        description: ISO date, as text.
+      - name: amount
+        description: Decimal as text.
+      - name: status
+        description: POSTED, PENDING or REVERSED (may need trim/uppercase).
+      - name: updated_at
+        description: ISO timestamp as text, without timezone; orders record versions.
+
+  - name: reporting_dates
+    description: Calendar of reporting dates, 2026-01-01 through 2026-06-30 inclusive.
+    columns:
+      - name: reporting_date
+        description: ISO date, as text.

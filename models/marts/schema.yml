@@ -39,6 +39,11 @@ models:
       the origination date on). Cumulative position of the agreement as of the reporting date,
       restated with the latest schedule and payment states. All amounts are in the agreement
       currency, NUMBER(18,2); no FX is applied.
+    config:
+      meta:
+        owner: analytics-engineering
+        business_definitions_owner: credit-risk
+        certification: candidate  # becomes "certified" only after the gate in DECISIONS.md
     columns:
       - name: agreement_date_key
         description: agreement_id and reporting_date joined as text; unique key of the grain.
@@ -138,6 +143,11 @@ models:
       Portfolio summary: one row per reporting date, country, product and currency. Currencies are
       never summed together. Balance measures are sums of the per-agreement values of
       fct_agreement_daily. DPD rates use all agreements present on that date as the denominator.
+    config:
+      meta:
+        owner: analytics-engineering
+        business_definitions_owner: credit-risk
+        certification: candidate  # becomes "certified" only after the gate in DECISIONS.md
     columns:
       - name: reporting_date
         description: Reporting date (calendar date).

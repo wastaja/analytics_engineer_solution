@@ -60,3 +60,19 @@ unit_tests:
       rows:
         - {reporting_date: '2026-03-01', country: KE, product: PHONES, currency: KES, agreement_count: 2, total_due: 4001.00, total_paid: 7001.00, arrears_amount: 1500.25, remaining_scheduled_amount: 5499.75, credit_balance: 500.75, dpd7_count: 1, dpd30_count: 0, dpd7_rate: 0.5000, dpd30_rate: 0.0000}
         - {reporting_date: '2026-03-01', country: UG, product: BODA, currency: UGX, agreement_count: 1, total_due: 1000.00, total_paid: 0.00, arrears_amount: 1000.00, remaining_scheduled_amount: 6000.00, credit_balance: 0.00, dpd7_count: 1, dpd30_count: 1, dpd7_rate: 1.0000, dpd30_rate: 1.0000}
+
+  - name: mart_portfolio_daily_rate_rounding_and_decimal_sums
+    description: >
+      Three agreements of one segment. 2 of 3 with DPD 7+ gives 0.6667 and 1 of 3 with DPD 30+ gives
+      0.3333 (rounded to 4 decimals, not truncated). Small decimal amounts (0.10 + 0.20 + 0.01) are
+      summed exactly, with no floating-point drift.
+    model: mart_portfolio_daily
+    given:
+      - input: ref('fct_agreement_daily')
+        rows:
+          - {agreement_id: A1, reporting_date: '2026-03-01', country: KE, product: PHONES, currency: KES, total_due: 0.10, total_paid: 0.00, arrears_amount: 0.10, remaining_scheduled_amount: 1.00, credit_balance: 0.00, dpd7_flag: true, dpd30_flag: true}
+          - {agreement_id: A2, reporting_date: '2026-03-01', country: KE, product: PHONES, currency: KES, total_due: 0.20, total_paid: 0.10, arrears_amount: 0.10, remaining_scheduled_amount: 0.90, credit_balance: 0.00, dpd7_flag: true, dpd30_flag: false}
+          - {agreement_id: A3, reporting_date: '2026-03-01', country: KE, product: PHONES, currency: KES, total_due: 0.01, total_paid: 0.20, arrears_amount: 0.00, remaining_scheduled_amount: 0.80, credit_balance: 0.00, dpd7_flag: false, dpd30_flag: false}
+    expect:
+      rows:
+        - {reporting_date: '2026-03-01', country: KE, product: PHONES, currency: KES, agreement_count: 3, total_due: 0.31, total_paid: 0.30, arrears_amount: 0.20, remaining_scheduled_amount: 2.70, credit_balance: 0.00, dpd7_count: 2, dpd30_count: 1, dpd7_rate: 0.6667, dpd30_rate: 0.3333}

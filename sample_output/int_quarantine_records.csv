@@ -1,0 +1,2 @@
+source_table,record_key,agreement_id,amount,currency,reason,excluded_from_metrics,updated_at
+payments,P-BAD,A999,20.25,UNKNOWN,ORPHAN_PAYMENT,true,2026-02-01 10:00:00

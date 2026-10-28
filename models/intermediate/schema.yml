@@ -59,6 +59,24 @@ models:
         data_tests:
           - unique
           - not_null
+      - name: customer_id
+        description: Customer identifier.
+      - name: country
+        description: Country of the agreement (KE, UG).
+      - name: product
+        description: Product of the agreement (PHONES, BODA).
+      - name: currency
+        description: Currency of the agreement (KES, UGX).
+      - name: origination_date
+        description: Agreement origination date (calendar date).
+      - name: principal_amount
+        description: Descriptive only; not used in any metric. NUMBER(18,2).
+      - name: updated_at
+        description: Timestamp of the record version.
+      - name: row_hash
+        description: Hash of the staging row; links the row to int_quarantine_records.
+      - name: is_conflicting_version
+        description: True when the key has conflicting versions at its latest timestamp (kept in the metrics, flagged for review).
 
   - name: int_schedule_valid
     description: Installments with a valid agreement and a positive amount.
@@ -76,6 +94,16 @@ models:
               arguments:
                 to: ref('int_agreements_valid')
                 field: agreement_id
+      - name: due_date
+        description: Installment due date (calendar date).
+      - name: due_amount
+        description: Scheduled amount of the installment. NUMBER(18,2).
+      - name: updated_at
+        description: Timestamp of the record version.
+      - name: row_hash
+        description: Hash of the staging row; links the row to int_quarantine_records.
+      - name: is_conflicting_version
+        description: True when the key has conflicting versions at its latest timestamp (kept in the metrics, flagged for review).
 
   - name: int_payments_eligible
     description: >
@@ -107,6 +135,10 @@ models:
         description: Currency of the agreement.
         data_tests:
           - not_null
+      - name: updated_at
+        description: Timestamp of the record version.
+      - name: row_hash
+        description: Hash of the staging row; links the row to int_quarantine_records.
 
   - name: int_agreement_dates
     description: >

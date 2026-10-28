@@ -1,0 +1,4 @@
+exclusion_type,source_table,reason,currency,record_count,total_amount
+QUARANTINED,payments,ORPHAN_PAYMENT,UNKNOWN,1,20.25
+STATUS_EXCLUDED,payments,STATUS_PENDING,KES,1,500.25
+STATUS_EXCLUDED,payments,STATUS_REVERSED,KES,1,250.50

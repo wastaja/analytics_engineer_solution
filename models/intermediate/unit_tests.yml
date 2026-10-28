@@ -21,6 +21,43 @@ unit_tests:
       rows:
         - {source_table: payments, record_key: P-BAD, agreement_id: A999, amount: 20.25, currency: UNKNOWN, reason: ORPHAN_PAYMENT, excluded_from_metrics: true}
 
+  - name: int_quarantine_rejection_rules_and_amount_boundaries
+    description: >
+      Rejection rules that the real extract does not exercise: zero and negative amounts, a missing
+      amount, an unsupported status, an unsupported product and a missing customer. The smallest
+      positive amount (0.01) is accepted, so it must not be listed.
+    model: int_quarantine_records
+    given:
+      - input: ref('stg_agreements')
+        rows:
+          - {agreement_id: A001, customer_id: C001, country: KE, product: PHONES, currency: KES, origination_date: '2026-01-01', principal_amount: 6000.00, updated_at: '2026-01-02 09:00:00', row_hash: h-a001, is_conflicting_version: false}
+          - {agreement_id: A002, customer_id: C002, country: UG, product: SCOOTER, currency: UGX, origination_date: '2026-01-01', principal_amount: 5000.00, updated_at: '2026-01-02 09:00:00', row_hash: h-a002, is_conflicting_version: false}
+          - {agreement_id: A003, customer_id: null, country: KE, product: PHONES, currency: KES, origination_date: '2026-01-01', principal_amount: 4000.00, updated_at: '2026-01-02 09:00:00', row_hash: h-a003, is_conflicting_version: false}
+      - input: ref('stg_schedule')
+        rows:
+          - {installment_id: A001-1, agreement_id: A001, due_date: '2026-01-15', due_amount: 0.00, updated_at: '2026-01-02 09:00:00', row_hash: h-s1, is_conflicting_version: false}
+          - {installment_id: A001-2, agreement_id: A001, due_date: '2026-02-15', due_amount: -50.00, updated_at: '2026-01-02 09:00:00', row_hash: h-s2, is_conflicting_version: false}
+          - {installment_id: A001-3, agreement_id: A001, due_date: '2026-03-15', due_amount: null, updated_at: '2026-01-02 09:00:00', row_hash: h-s3, is_conflicting_version: false}
+          - {installment_id: A001-4, agreement_id: A001, due_date: '2026-04-15', due_amount: 100.00, updated_at: '2026-01-02 09:00:00', row_hash: h-s4, is_conflicting_version: false}
+      - input: ref('stg_payments')
+        rows:
+          - {payment_id: P-ZERO, agreement_id: A001, payment_date: '2026-01-16', amount: 0.00, status: POSTED, updated_at: '2026-01-15 12:00:00', row_hash: h-p1, is_conflicting_version: false}
+          - {payment_id: P-NEG, agreement_id: A001, payment_date: '2026-01-17', amount: -10.25, status: POSTED, updated_at: '2026-01-15 12:00:00', row_hash: h-p2, is_conflicting_version: false}
+          - {payment_id: P-NOAMT, agreement_id: A001, payment_date: '2026-01-18', amount: null, status: POSTED, updated_at: '2026-01-15 12:00:00', row_hash: h-p3, is_conflicting_version: false}
+          - {payment_id: P-BADSTATUS, agreement_id: A001, payment_date: '2026-01-19', amount: 30.00, status: CANCELLED, updated_at: '2026-01-15 12:00:00', row_hash: h-p4, is_conflicting_version: false}
+          - {payment_id: P-SMALLEST, agreement_id: A001, payment_date: '2026-01-20', amount: 0.01, status: POSTED, updated_at: '2026-01-15 12:00:00', row_hash: h-p5, is_conflicting_version: false}
+    expect:
+      rows:
+        - {source_table: agreements, record_key: A002, agreement_id: A002, amount: 5000.00, currency: UGX, reason: INVALID_DOMAIN_VALUE, excluded_from_metrics: true}
+        - {source_table: agreements, record_key: A003, agreement_id: A003, amount: 4000.00, currency: KES, reason: MISSING_REQUIRED_FIELD, excluded_from_metrics: true}
+        - {source_table: schedule, record_key: A001-1, agreement_id: A001, amount: 0.00, currency: KES, reason: NON_POSITIVE_AMOUNT, excluded_from_metrics: true}
+        - {source_table: schedule, record_key: A001-2, agreement_id: A001, amount: -50.00, currency: KES, reason: NON_POSITIVE_AMOUNT, excluded_from_metrics: true}
+        - {source_table: schedule, record_key: A001-3, agreement_id: A001, amount: null, currency: KES, reason: MISSING_REQUIRED_FIELD, excluded_from_metrics: true}
+        - {source_table: payments, record_key: P-ZERO, agreement_id: A001, amount: 0.00, currency: KES, reason: NON_POSITIVE_AMOUNT, excluded_from_metrics: true}
+        - {source_table: payments, record_key: P-NEG, agreement_id: A001, amount: -10.25, currency: KES, reason: NON_POSITIVE_AMOUNT, excluded_from_metrics: true}
+        - {source_table: payments, record_key: P-NOAMT, agreement_id: A001, amount: null, currency: KES, reason: MISSING_REQUIRED_FIELD, excluded_from_metrics: true}
+        - {source_table: payments, record_key: P-BADSTATUS, agreement_id: A001, amount: 30.00, currency: KES, reason: INVALID_STATUS, excluded_from_metrics: true}
+
   - name: int_quarantine_invalid_agreement_orphans_its_installments
     description: An agreement with a country/currency mismatch is rejected, so its installments become orphans.
     model: int_quarantine_records
